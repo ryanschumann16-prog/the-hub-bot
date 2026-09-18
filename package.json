@@ -1,0 +1,8 @@
+{
+  "name": "the-hub-bot",
+  "version": "1.0.0",
+  "description": "The Hub Discord bot",
+  "main": "src/index.js",
+  "scripts": { "start": "node src/index.js" },
+  "dependencies": { "discord.js": "^14.25.1", "dotenv": "^16.6.1" }
+}

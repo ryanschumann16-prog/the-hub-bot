@@ -103,8 +103,22 @@ client.on("interactionCreate",async interaction=>{
   if(n==="ping")return interaction.reply({content:"Pong! "+client.ws.ping+"ms",ephemeral:true});
 
   if(n==="help"){
-   const names=commands.map(c=>"/"+c.name).join(" ");
-   const e=new EmbedBuilder().setTitle("The Hub Bot").setDescription("Implemented commands").addFields({name:"Commands",value:names.slice(0,1024)});
+   const groups=[
+    ["Utility","/ping /help /serverinfo /membercount /userinfo /avatar"],
+    ["Channels","/create-channel /delete-channel /rename-channel /clear /purge /slowmode /lock /unlock /lockdown /unlockdown /move"],
+    ["Moderation","/warn /warnings /clearwarnings /timeout /untimeout /kick /ban /unban /softban /nick"],
+    ["Tickets","/ticket open /ticket panel /ticket settings /close /add /remove /claim /unclaim /rename /transcript"],
+    ["Automod","/automod enable /automod disable /automod status /automod config"],
+    ["Welcome & Goodbye","/welcome config /welcome test /goodbye config /goodbye test"],
+    ["Birthdays","/birthday set /birthday remove /birthday view /birthday list /birthday upcoming /birthday today /birthday config /birthday test"],
+    ["Leveling","/level view /level rank /level leaderboard /level config /level rewards"],
+    ["Giveaways","/giveaway start /giveaway end /giveaway reroll /giveaway cancel /giveaway enter /giveaway list"],
+    ["Community","/suggest /suggestions /suggestion-approve /suggestion-deny /suggestion-review /apply staff /apply partner /apply creator"],
+    ["Tools","/remind /reminders /reminder-delete /afk /afk-remove /afk-list /starboard /starboard-disable /sticky /sticky-remove /sticky-list"],
+    ["Management","/customcommand add /customcommand remove /customcommand list /customcommand edit /announce /announcement-edit /announcement-delete /addrole /removerole /role create /role delete /role add /role remove /role info /role list"],
+    ["Staff","/staffinfo /staffannounce /staffnotes /report /reports /modstats /stafflist /msg"]
+   ];
+   const e=new EmbedBuilder().setTitle("The Hub Bot").setDescription("All available The Hub systems").addFields(groups.map(([name,value])=>({name,value})));
    return interaction.reply({embeds:[e],ephemeral:true});
   }
 

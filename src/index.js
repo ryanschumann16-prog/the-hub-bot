@@ -103,13 +103,8 @@ client.on("interactionCreate",async interaction=>{
   if(n==="ping")return interaction.reply({content:"Pong! "+client.ws.ping+"ms",ephemeral:true});
 
   if(n==="help"){
-   const e=new EmbedBuilder().setTitle("The Hub Bot").setDescription("Working commands")
-    .addFields(
-     {name:"Utility",value:"/ping\n/help\n/serverinfo\n/membercount\n/userinfo\n/avatar"},
-     {name:"Channel",value:"/create-channel\n/delete-channel\n/rename-channel\n/clear\n/purge\n/slowmode\n/lock\n/unlock"},
-     {name:"Moderation",value:"/timeout\n/untimeout\n/kick\n/ban\n/unban\n/nick"},
-     {name:"Staff",value:"/msg"}
-    );
+   const names=commands.map(c=>"/"+c.name).join(" ");
+   const e=new EmbedBuilder().setTitle("The Hub Bot").setDescription("Implemented commands").addFields({name:"Commands",value:names.slice(0,1024)});
    return interaction.reply({embeds:[e],ephemeral:true});
   }
 

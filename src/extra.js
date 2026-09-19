@@ -10,7 +10,7 @@ const key=(g,u)=>g.id+":"+u;
 const out=(i,t)=>i.replied||i.deferred?i.followUp({content:t,ephemeral:true}):i.reply({content:t,ephemeral:true});
 const opt=(i,n)=>i.options.getString(n), usr=(i,n)=>i.options.getUser(n), ch=(i,n)=>i.options.getChannel(n);
 
-function add(x){commands.push(x)}
+function add(...xs){commands.push(...xs)}
 add(cmd("warn","Warn a member.",P.ModerateMembers).addUserOption(U()).addStringOption(S("reason","Reason.")));
 add(cmd("warnings","View warnings.",P.ModerateMembers).addUserOption(U()));
 add(cmd("clearwarnings","Clear warnings.",P.ModerateMembers).addUserOption(U()));

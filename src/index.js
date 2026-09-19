@@ -221,6 +221,48 @@ client.on("interactionCreate",async interaction=>{
  }
 });
 
+
+async function logEvent(guild, title, description){
+  const id=db.config.logChannel;
+  if(!id)return;
+  const channel=guild.channels.cache.get(id);
+  if(!channel?.isTextBased())return;
+  await channel.send({embeds:[new EmbedBuilder().setTitle(title).setDescription(description).setTimestamp()]}).catch(()=>{});
+}
+client.on("messageDelete", async message => {
+  if(!message.guild || message.author?.bot)return;
+  await logEvent(message.guild,"Message deleted","Channel: "+message.channel+"\\nAuthor: "+(message.author?.tag||"Unknown")+"\\n"+(message.content||"[no content]"));
+});
+client.on("messageUpdate", async (oldMessage,newMessage) => {
+  if(!newMessage.guild || oldMessage.author?.bot)return;
+  if(oldMessage.content===newMessage.content)return;
+  await logEvent(newMessage.guild,"Message edited","Channel: "+newMessage.channel+"\\nAuthor: "+(newMessage.author?.tag||"Unknown")+"\\nBefore: "+(oldMessage.content||"[empty]")+"\\nAfter: "+(newMessage.content||"[empty]"));
+});
+client.on("channelCreate", async channel => { if(channel.guild)await logEvent(channel.guild,"Channel created",channel.toString()+" ("+channel.name+")"); });
+client.on("channelDelete", async channel => { if(channel.guild)await logEvent(channel.guild,"Channel deleted","#"+channel.name); });
+client.on("channelUpdate", async (oldChannel,newChannel) => {
+  if(!newChannel.guild || oldChannel.name===newChannel.name)return;
+  await logEvent(newChannel.guild,"Channel renamed","Before: #"+oldChannel.name+"\\nAfter: #"+newChannel.name);
+});
+client.on("roleCreate", async role => { await logEvent(role.guild,"Role created",role.toString()+" ("+role.name+")"); });
+client.on("roleDelete", async role => { await logEvent(role.guild,"Role deleted",role.name); });
+client.on("roleUpdate", async (oldRole,newRole) => {
+  if(oldRole.name===newRole.name)return;
+  await logEvent(newRole.guild,"Role renamed","Before: "+oldRole.name+"\\nAfter: "+newRole.name);
+});
+client.on("guildMemberUpdate", async (oldMember,newMember) => {
+  if(oldMember.nickname!==newMember.nickname){
+    await logEvent(newMember.guild,"Nickname changed",newMember.user.tag+"\\nBefore: "+(oldMember.nickname||oldMember.user.username)+"\\nAfter: "+(newMember.nickname||newMember.user.username));
+  }
+});
+client.on("voiceStateUpdate", async (oldState,newState) => {
+  if(!newState.guild)return;
+  if(oldState.channelId===newState.channelId)return;
+  const member=newState.member||oldState.member;
+  const from=oldState.channel?oldState.channel.name:"None", to=newState.channel?newState.channel.name:"None";
+  await logEvent(newState.guild,"Voice state changed",(member?.user?.tag||"Unknown")+"\\nFrom: "+from+"\\nTo: "+to);
+});
+
 client.login(token);
 
 function joinLeaveChannel(guild,id){

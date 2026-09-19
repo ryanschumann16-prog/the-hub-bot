@@ -4,13 +4,21 @@ const {
   Client, GatewayIntentBits, REST, Routes, PermissionFlagsBits,
   SlashCommandBuilder, ChannelType, EmbedBuilder
 } = require("discord.js");
+const extra=require("./extra");
 
 const token=process.env.DISCORD_TOKEN, guildId=process.env.DISCORD_GUILD_ID;
 if(!token||!guildId){console.error("Missing DISCORD_TOKEN or DISCORD_GUILD_ID.");process.exit(1);}
 
-const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers]});
+const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent,GatewayIntentBits.GuildVoiceStates]});
 
 const staffRoles=["Owner","Co-owner","Manager","Administrator","Moderator","Helper"];
+const path=require("path"),fs=require("fs");
+const dataDir=path.join(__dirname,"..","data");fs.mkdirSync(dataDir,{recursive:true});
+const dataFile=path.join(dataDir,"store.json");
+const defaultDb={warnings:{},birthdays:{},levels:{},reminders:[],afk:{},giveaways:{},suggestions:{},applications:{},customCommands:{},sticky:{},tickets:{},config:{automod:false,badWords:[],leveling:true}};
+let db={...defaultDb};try{if(fs.existsSync(dataFile))db={...defaultDb,...JSON.parse(fs.readFileSync(dataFile,"utf8"))};}catch(e){console.error("Could not load data:",e)}
+function save(){fs.writeFileSync(dataFile,JSON.stringify(db,null,2));}
+globalThis.__THE_HUB_DB=db;globalThis.__THE_HUB_SAVE=save;
 
 const commands=[
 new SlashCommandBuilder().setName("ping").setDescription("Check bot latency."),
@@ -62,6 +70,7 @@ new SlashCommandBuilder().setName("nick").setDescription("Change a member nickna
  .addUserOption(o=>o.setName("user").setDescription("Member.").setRequired(true))
  .addStringOption(o=>o.setName("nickname").setDescription("New nickname.")),
 ].map(c=>c.toJSON());
+commands.push(...extra.commands.map(c=>c.toJSON()));
 
 async function registerCommands(){
  const rest=new REST({version:"10"}).setToken(token);
@@ -82,12 +91,14 @@ function targetMember(interaction,user){
 client.once("ready",async()=>{
  console.log("Logged in as "+client.user.tag);
  try{await registerCommands();}catch(e){console.error("Command registration failed:",e);}
+ try{extra.init({client,db:globalThis.__THE_HUB_DB,save:globalThis.__THE_HUB_SAVE});}catch(e){console.error("Extra systems init failed:",e);}
 });
 
 client.on("interactionCreate",async interaction=>{
  if(!interaction.isChatInputCommand())return;
  try{
   const n=interaction.commandName;
+  if(await extra.handle(interaction,{client,db,save}))return;
 
   if(n==="ping")return interaction.reply({content:"Pong! "+client.ws.ping+"ms",ephemeral:true});
 
@@ -200,3 +211,33 @@ client.on("interactionCreate",async interaction=>{
 });
 
 client.login(token);
+
+client.on("guildMemberAdd",async member=>{
+ const id=db.config.welcome;
+ if(id){const ch=member.guild.channels.cache.get(id);if(ch?.isTextBased())await ch.send("Welcome "+member+" to **"+member.guild.name+"**!").catch(()=>{});}
+});
+client.on("guildMemberRemove",async member=>{
+ const id=db.config.goodbye;
+ if(id){const ch=member.guild.channels.cache.get(id);if(ch?.isTextBased())await ch.send("Goodbye **"+member.user.tag+"**!").catch(()=>{});}
+});
+client.on("messageCreate",async message=>{
+ if(!message.guild||message.author.bot)return;
+ const k=message.guild.id+":"+message.author.id;
+ if(db.afk[k]){delete db.afk[k];save();await message.reply("Welcome back! Your AFK status was removed.").catch(()=>{});}
+ for(const [key,reason] of Object.entries(db.afk))if(key.startsWith(message.guild.id+":")&&message.mentions.users.has(key.split(":")[1]))await message.reply("<@"+key.split(":")[1]+"> is AFK: "+reason).catch(()=>{});
+ if(db.config.automod&&(db.config.badWords||[]).some(w=>message.content.toLowerCase().includes(w))){
+  if(!message.member?.permissions.has(PermissionFlagsBits.ManageMessages)){await message.delete().catch(()=>{});const x=await message.channel.send("Your message was removed by automod.").catch(()=>null);if(x)setTimeout(()=>x.delete().catch(()=>{}),4000);}
+  return;
+ }
+ if(db.config.leveling!==false){
+  if(!db.levels[k])db.levels[k]={xp:0,level:0};
+  db.levels[k].xp+=Math.floor(Math.random()*11)+10;
+  const need=100+db.levels[k].level*50;
+  if(db.levels[k].xp>=need){db.levels[k].xp-=need;db.levels[k].level++;await message.channel.send("🎉 "+message.author+" reached level **"+db.levels[k].level+"**!").catch(()=>{});}
+  save();
+ }
+ const custom=db.customCommands[message.guild.id]?.[message.content.trim().toLowerCase()];
+ if(custom)await message.channel.send(custom).catch(()=>{});
+ const sticky=db.sticky[message.channel.id];
+ if(sticky){const x=await message.channel.send(sticky.message).catch(()=>null);if(x){sticky.lastMessage=x.id;save();}}
+});

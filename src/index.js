@@ -230,6 +230,7 @@ function joinLeaveChannel(guild,id){
 client.on("guildMemberAdd",async member=>{
  const ch=joinLeaveChannel(member.guild,db.config.welcome);
  if(ch?.isTextBased())await ch.send("👋 Hi "+member+"! Welcome to **"+member.guild.name+"**!").catch(()=>{});
+ const roleId=db.config.autorole;if(roleId){const role=member.guild.roles.cache.get(roleId);if(role)await member.roles.add(role).catch(()=>{});}
 });
 client.on("guildMemberRemove",async member=>{
  const ch=joinLeaveChannel(member.guild,db.config.goodbye);

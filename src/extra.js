@@ -42,6 +42,51 @@ for(const [n,d,p] of [["staffinfo","Show staff info."],["staffannounce","Staff a
  const x=cmd(n,d,p);if(n==="staffannounce")x.addStringOption(S("message","Message.",true));if(n==="staffnotes")x.addStringOption(S("note","Note.",true));if(n==="report")x.addUserOption(U("user","Member.",true)).addStringOption(S("reason","Reason.",true));commands.push(x)
 }
 
+
+// Lofi voice controls
+g=grp("lofi","Play lofi music in a voice channel.");
+sub(g,"join","Join your current voice channel.");
+sub(g,"play","Play the configured lofi stream.");
+sub(g,"stop","Stop lofi music.");
+sub(g,"leave","Leave the voice channel.");
+commands.push(g);
+
+ if(n==="lofi"){
+  const s=i.options.getSubcommand();
+  const voice=i.member?.voice?.channel;
+  if(s==="join"){
+   if(!voice)return out(i,"Join a voice channel first.");
+   const {joinVoiceChannel}=require("@discordjs/voice");
+   const connection=joinVoiceChannel({channelId:voice.id,guildId:i.guild.id,adapterCreator:i.guild.voiceAdapterCreator,selfDeaf:true});
+   ctx.voiceConnections??={};ctx.voiceConnections[i.guild.id]=connection;
+   return out(i,"Joined "+voice.name+".");
+  }
+  const connection=ctx.voiceConnections?.[i.guild.id];
+  if(s==="leave"){
+   if(connection){connection.destroy();delete ctx.voiceConnections[i.guild.id];}
+   return out(i,"Left the voice channel.");
+  }
+  if(!connection)return out(i,"Use /lofi join first.");
+  if(s==="stop"){
+   connection.state.subscription?.unsubscribe?.();
+   return out(i,"Lofi stopped.");
+  }
+  const url=process.env.LOFI_STREAM_URL;
+  if(!url)return out(i,"Set LOFI_STREAM_URL in your Codespaces environment first.");
+  try{
+   const {createAudioPlayer,createAudioResource,AudioPlayerStatus,StreamType}=require("@discordjs/voice");
+   const https=require("https"),ffmpeg=require("ffmpeg-static"),{spawn}=require("child_process");
+   ctx.voicePlayers??={};
+   let player=ctx.voicePlayers[i.guild.id];
+   if(!player)player=createAudioPlayer(),ctx.voicePlayers[i.guild.id]=player;
+   const proc=spawn(ffmpeg,["-hide_banner","-loglevel","error","-i",url,"-f","s16le","-ar","48000","-ac","2","pipe:1"],{stdio:["ignore","pipe","ignore"]});
+   const resource=createAudioResource(proc.stdout,{inputType:StreamType.Raw});
+   player.play(resource);connection.subscribe(player);
+   player.once(AudioPlayerStatus.Idle,()=>{try{proc.kill()}catch{}});
+   return out(i,"Lofi is now playing.");
+  }catch(err){console.error("Lofi error:",err);return out(i,"Could not start the lofi stream.");}
+ }
+
 const key=(g,u)=>g.id+":"+u, opt=(i,n)=>i.options.getString(n), usr=(i,n)=>i.options.getUser(n), chan=(i,n)=>i.options.getChannel(n);
 const out=(i,t)=>i.reply({content:t,ephemeral:true});
 const levelData=(db,g,u)=>{const k=key(g,u);if(!db.levels[k])db.levels[k]={xp:0,level:0};return db.levels[k]};

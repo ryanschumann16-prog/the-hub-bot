@@ -19,6 +19,7 @@ const defaultDb={warnings:{},birthdays:{},levels:{},reminders:[],afk:{},giveaway
 let db={...defaultDb};try{if(fs.existsSync(dataFile))db={...defaultDb,...JSON.parse(fs.readFileSync(dataFile,"utf8"))};}catch(e){console.error("Could not load data:",e)}
 function save(){fs.writeFileSync(dataFile,JSON.stringify(db,null,2));}
 globalThis.__THE_HUB_DB=db;globalThis.__THE_HUB_SAVE=save;
+const voiceConnections={},voicePlayers={};
 
 const commands=[
 new SlashCommandBuilder().setName("ping").setDescription("Check bot latency."),
@@ -92,14 +93,14 @@ function targetMember(interaction,user){
 client.once("ready",async()=>{
  console.log("Logged in as "+client.user.tag);
  try{await registerCommands();}catch(e){console.error("Command registration failed:",e);}
- try{extra.init({client,db:globalThis.__THE_HUB_DB,save:globalThis.__THE_HUB_SAVE});}catch(e){console.error("Extra systems init failed:",e);}
+ try{extra.init({client,db:globalThis.__THE_HUB_DB,save:globalThis.__THE_HUB_SAVE,voiceConnections,voicePlayers});}catch(e){console.error("Extra systems init failed:",e);}
 });
 
 client.on("interactionCreate",async interaction=>{
  if(!interaction.isChatInputCommand())return;
  try{
   const n=interaction.commandName;
-  if(await extra.handle(interaction,{client,db,save}))return;
+  if(await extra.handle(interaction,{client,db,save,voiceConnections,voicePlayers}))return;
 
   if(n==="ping")return interaction.reply({content:"Pong! "+client.ws.ping+"ms",ephemeral:true});
 
@@ -222,13 +223,17 @@ client.on("interactionCreate",async interaction=>{
 
 client.login(token);
 
+function joinLeaveChannel(guild,id){
+ if(id)return guild.channels.cache.get(id);
+ return guild.systemChannel||guild.channels.cache.find(c=>c.name==="general"&&c.isTextBased())||guild.channels.cache.find(c=>c.isTextBased()&&c.permissionsFor(client.user)?.has(PermissionFlagsBits.SendMessages));
+}
 client.on("guildMemberAdd",async member=>{
- const id=db.config.welcome;
- if(id){const ch=member.guild.channels.cache.get(id);if(ch?.isTextBased())await ch.send("Welcome "+member+" to **"+member.guild.name+"**!").catch(()=>{});}
+ const ch=joinLeaveChannel(member.guild,db.config.welcome);
+ if(ch?.isTextBased())await ch.send("👋 Hi "+member+"! Welcome to **"+member.guild.name+"**!").catch(()=>{});
 });
 client.on("guildMemberRemove",async member=>{
- const id=db.config.goodbye;
- if(id){const ch=member.guild.channels.cache.get(id);if(ch?.isTextBased())await ch.send("Goodbye **"+member.user.tag+"**!").catch(()=>{});}
+ const ch=joinLeaveChannel(member.guild,db.config.goodbye);
+ if(ch?.isTextBased())await ch.send("👋 Bye **"+member.user.tag+"**! We'll see you next time.").catch(()=>{});
 });
 client.on("messageCreate",async message=>{
  if(!message.guild||message.author.bot)return;

@@ -70,12 +70,13 @@ new SlashCommandBuilder().setName("nick").setDescription("Change a member nickna
  .addUserOption(o=>o.setName("user").setDescription("Member.").setRequired(true))
  .addStringOption(o=>o.setName("nickname").setDescription("New nickname.")),
 ].map(c=>c.toJSON());
-commands.push(...extra.commands.map(c=>c.toJSON()));
+const allCommands=[...commands,...extra.commands.map(c=>c.toJSON())];
 
 async function registerCommands(){
  const rest=new REST({version:"10"}).setToken(token);
- await rest.put(Routes.applicationGuildCommands(client.user.id,guildId),{body:commands});
- console.log("Slash commands registered: "+commands.length);
+ await rest.put(Routes.applicationGuildCommands(client.user.id,guildId),{body:allCommands});
+ console.log("Slash commands registered: "+allCommands.length);
+ console.log("Systems loaded: tickets, automod, welcome/goodbye, birthdays, leveling, giveaways, suggestions, applications, reminders, AFK, starboard, sticky, custom commands, announcements, roles, staff tools.");
 }
 
 function memberHasStaffRole(member){

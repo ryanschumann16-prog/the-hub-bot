@@ -87,6 +87,28 @@ commands.push(g);
   }catch(err){console.error("Lofi error:",err);return out(i,"Could not start the lofi stream.");}
  }
 
+
+// MEE6-style community tools
+commands.push(
+ cmd("say","Send a message as The Hub bot.",P.ManageMessages).addStringOption(S("message","Message.",true)).addChannelOption(C("channel","Channel.")),
+ cmd("embed","Send an embedded message.",P.ManageMessages).addStringOption(S("title","Title.",true)).addStringOption(S("description","Description.",true)).addChannelOption(C("channel","Channel.")),
+ cmd("poll","Create a simple poll.",P.ManageMessages).addStringOption(S("question","Question.",true)).addStringOption(S("options","Options separated by |.",true)),
+ cmd("invites","Show invite counts.",P.ManageGuild).addUserOption(U("user","User.")),
+ cmd("stats","Show your leveling statistics.").addUserOption(U("user","User.")),
+ cmd("serverstats","Show server statistics."),
+ cmd("roleinfo","Show role information.").addRoleOption(o=>o.setName("role").setDescription("Role.").setRequired(true)),
+ cmd("channelinfo","Show channel information.").addChannelOption(C("channel","Channel.")),
+ cmd("botinfo","Show bot information."),
+ cmd("permissions","Show your permissions."),
+ cmd("setnick","Set a member nickname.",P.ManageNicknames).addUserOption(U("user","Member.",true)).addStringOption(S("nickname","Nickname.")),
+ cmd("autorole","Configure the role given to new members.",P.ManageRoles).addRoleOption(o=>o.setName("role").setDescription("Role to give automatically.").setRequired(true)),
+ cmd("autorole-disable","Disable automatic role.",P.ManageRoles),
+ cmd("reactionrole","Create a reaction-role style button panel.",P.ManageRoles).addRoleOption(o=>o.setName("role").setDescription("Role.").setRequired(true)).addStringOption(S("message","Panel message.",true)).addChannelOption(C("channel","Channel.")),
+ cmd("announce-embed","Send a formatted announcement.",P.ManageMessages).addStringOption(S("title","Title.",true)).addStringOption(S("description","Description.",true)).addChannelOption(C("channel","Channel.")),
+ cmd("memberlist","List members with a role.").addRoleOption(o=>o.setName("role").setDescription("Role.").setRequired(true)),
+ cmd("remindme","Create a personal reminder.").addIntegerOption(I("minutes","Minutes.",true,1,525600)).addStringOption(S("message","Message.",true))
+);
+
 const key=(g,u)=>g.id+":"+u, opt=(i,n)=>i.options.getString(n), usr=(i,n)=>i.options.getUser(n), chan=(i,n)=>i.options.getChannel(n);
 const out=(i,t)=>i.reply({content:t,ephemeral:true});
 const levelData=(db,g,u)=>{const k=key(g,u);if(!db.levels[k])db.levels[k]={xp:0,level:0};return db.levels[k]};
@@ -95,6 +117,22 @@ const finishGiveaway=(ctx,g)=>setTimeout(async()=>{if(g.ended)return;const a=[..
 
 async function handle(i,ctx){
  const db=ctx.db,n=i.commandName;
+ if(n==="say"){const c=chan(i,"channel")||i.channel;await c.send({content:opt(i,"message"),allowedMentions:{parse:[]}});return out(i,"Message sent.")}
+ if(n==="embed"||n==="announce-embed"){const c=chan(i,"channel")||i.channel;await c.send({embeds:[new EmbedBuilder().setTitle(opt(i,"title")).setDescription(opt(i,"description")).setTimestamp()]});return out(i,"Embed sent.")}
+ if(n==="poll"){const opts=opt(i,"options").split("|").map(x=>x.trim()).filter(Boolean).slice(0,10);if(opts.length<2)return out(i,"Provide at least 2 options separated by |.");const e=new EmbedBuilder().setTitle("Poll").setDescription("**"+opt(i,"question")+"**\\n\\n"+opts.map((x,j)=>(j+1)+". "+x).join("\\n"));const m=await i.channel.send({embeds:[e]});const nums=["1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"];for(let j=0;j<opts.length;j++)await m.react(nums[j]);return out(i,"Poll created.")}
+ if(n==="stats"){const u=usr(i,"user")||i.user,d=levelData(db,i.guild,u.id);return out(i,u.tag+" — Level "+d.level+" — "+d.xp+" XP")}
+ if(n==="serverstats"){return out(i,"Members: "+i.guild.memberCount+" | Channels: "+i.guild.channels.cache.size+" | Roles: "+i.guild.roles.cache.size)}
+ if(n==="roleinfo"){const r=i.options.getRole("role",true);return out(i,r.name+" — ID "+r.id+" — "+r.members.size+" members")}
+ if(n==="channelinfo"){const c=chan(i,"channel")||i.channel;return out(i,c.name+" — ID "+c.id+" — Type "+c.type)}
+ if(n==="botinfo"){return out(i,"The Hub Bot — discord.js — "+i.client.guilds.cache.size+" server(s)")}
+ if(n==="permissions"){return out(i,i.member.permissions.toArray().join(", ")||"No permissions")}
+ if(n==="setnick"){const m=i.guild.members.cache.get(usr(i,"user").id);if(!m)return out(i,"Member not found.");await m.setNickname(opt(i,"nickname")||null);return out(i,"Nickname updated.")}
+ if(n==="autorole"){db.config.autorole=i.options.getRole("role",true).id;ctx.save();return out(i,"Autorole configured.")}
+ if(n==="autorole-disable"){delete db.config.autorole;ctx.save();return out(i,"Autorole disabled.")}
+ if(n==="reactionrole"){const c=chan(i,"channel")||i.channel,r=i.options.getRole("role",true),m=await c.send({content:opt(i,"message")+"\\nReact with 👍 to get "+r+"."});await m.react("👍");db.reactionRoles??={};db.reactionRoles[m.id]={guild:i.guild.id,channel:c.id,role:r.id};ctx.save();return out(i,"Reaction-role panel created. Note: enable the bot's message reaction events if you want automatic assignment.")}
+ if(n==="memberlist"){const r=i.options.getRole("role",true);return out(i,r.members.map(m=>m.user.tag).join("\\n").slice(0,1900)||"No members.")}
+ if(n==="remindme"){const r={id:Date.now().toString(36),guild:i.guild.id,user:i.user.id,message:opt(i,"message"),at:Date.now()+i.options.getInteger("minutes",true)*60000};db.reminders.push(r);ctx.save();remind(ctx,r);return out(i,"Reminder set: "+r.id)}
+
  if(n==="warn"||n==="warnings"||n==="clearwarnings"){const u=usr(i,"user"),k=key(i.guild,u.id);db.warnings[k]??=[];if(n==="warn"){db.warnings[k].push({by:i.user.id,reason:opt(i,"reason")||"No reason",at:Date.now()});ctx.save();return out(i,"Warned "+u.tag+".")}if(n==="warnings")return out(i,db.warnings[k].map((x,j)=>"#"+(j+1)+" "+x.reason).join("\\n")||"No warnings.");db.warnings[k]=[];ctx.save();return out(i,"Warnings cleared.")}
  if(n==="softban"){const m=i.guild.members.cache.get(usr(i,"user").id);if(!m)return out(i,"Member not found.");await m.ban({reason:opt(i,"reason")||"Softban"});await i.guild.members.unban(m.id);return out(i,"Softban complete.")}
  if(n==="lockdown"||n==="unlockdown"){await i.deferReply({ephemeral:true});for(const c of i.guild.channels.cache.values())if(c.isTextBased())await c.permissionOverwrites.edit(i.guild.roles.everyone,{SendMessages:n==="lockdown"?false:null}).catch(()=>{});return i.editReply(n==="lockdown"?"Server lockdown enabled.":"Server lockdown disabled.")}

@@ -9,13 +9,13 @@ const extra=require("./extra");
 const token=process.env.DISCORD_TOKEN, guildId=process.env.DISCORD_GUILD_ID;
 if(!token||!guildId){console.error("Missing DISCORD_TOKEN or DISCORD_GUILD_ID.");process.exit(1);}
 
-const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent,GatewayIntentBits.GuildVoiceStates]});
+const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent,GatewayIntentBits.GuildVoiceStates,GatewayIntentBits.GuildMessageReactions]});
 
 const staffRoles=["Owner","Co-owner","Manager","Administrator","Moderator","Helper"];
 const path=require("path"),fs=require("fs");
 const dataDir=path.join(__dirname,"..","data");fs.mkdirSync(dataDir,{recursive:true});
 const dataFile=path.join(dataDir,"store.json");
-const defaultDb={warnings:{},birthdays:{},levels:{},reminders:[],afk:{},giveaways:{},suggestions:{},applications:{},customCommands:{},sticky:{},tickets:{},config:{automod:false,badWords:[],leveling:true}};
+const defaultDb={warnings:{},birthdays:{},levels:{},reminders:[],afk:{},giveaways:{},suggestions:{},applications:{},customCommands:{},sticky:{},tickets:{},reactionRoles:{},config:{automod:false,badWords:[],leveling:true}};
 let db={...defaultDb};try{if(fs.existsSync(dataFile))db={...defaultDb,...JSON.parse(fs.readFileSync(dataFile,"utf8"))};}catch(e){console.error("Could not load data:",e)}
 function save(){fs.writeFileSync(dataFile,JSON.stringify(db,null,2));}
 globalThis.__THE_HUB_DB=db;globalThis.__THE_HUB_SAVE=save;
@@ -90,7 +90,7 @@ function targetMember(interaction,user){
  return interaction.guild.members.cache.get(user.id);
 }
 
-client.once("ready",async()=>{
+client.once("clientReady",async()=>{
  console.log("Logged in as "+client.user.tag);
  try{await registerCommands();}catch(e){console.error("Command registration failed:",e);}
  try{extra.init({client,db:globalThis.__THE_HUB_DB,save:globalThis.__THE_HUB_SAVE,voiceConnections,voicePlayers});}catch(e){console.error("Extra systems init failed:",e);}
@@ -256,4 +256,19 @@ client.on("messageCreate",async message=>{
  if(custom)await message.channel.send(custom).catch(()=>{});
  const sticky=db.sticky[message.channel.id];
  if(sticky){const x=await message.channel.send(sticky.message).catch(()=>null);if(x){sticky.lastMessage=x.id;save();}}
+});
+
+client.on("messageReactionAdd",async(reaction,user)=>{
+ if(user.bot||!reaction.message.guild)return;
+ const cfg=db.reactionRoles?.[reaction.message.id]; if(!cfg)return;
+ if(reaction.emoji.name!=="👍")return;
+ const role=reaction.message.guild.roles.cache.get(cfg.role); const member=await reaction.message.guild.members.fetch(user.id).catch(()=>null);
+ if(role&&member)await member.roles.add(role).catch(()=>{});
+});
+client.on("messageReactionRemove",async(reaction,user)=>{
+ if(user.bot||!reaction.message.guild)return;
+ const cfg=db.reactionRoles?.[reaction.message.id]; if(!cfg)return;
+ if(reaction.emoji.name!=="👍")return;
+ const role=reaction.message.guild.roles.cache.get(cfg.role); const member=await reaction.message.guild.members.fetch(user.id).catch(()=>null);
+ if(role&&member)await member.roles.remove(role).catch(()=>{});
 });

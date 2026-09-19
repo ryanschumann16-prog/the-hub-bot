@@ -65,6 +65,12 @@ add(cmd("reactionrole","Create reaction role.",P.ManageRoles).addRoleOption(o=>o
 
 
 
+
+// Additional utility/logging commands.
+add(cmd("servericon","Show the server icon."),cmd("serverbanner","Show the server banner."),cmd("invite","Create a permanent invite."),cmd("uptime","Show bot uptime."));
+add(cmd("channel-info","Show channel information.").addChannelOption(o=>o.setName("channel").setDescription("Channel.")),cmd("lookup","Look up a Discord user.").addStringOption(S("user_id","User ID.")),cmd("firstmessage","Find the first available message.").addChannelOption(o=>o.setName("channel").setDescription("Channel.")));
+g=cmd("logging","Server logging.",P.ManageGuild);sub(g,"config","Set the logging channel.",[C("channel")]);sub(g,"disable","Disable logging.");sub(g,"status","Show logging status.");add(g);
+
 const timer=(ctx,r)=>{const ms=Math.min(Math.max(1000,r.at-Date.now()),2147483647);setTimeout(async()=>{const u=await ctx.client.users.fetch(r.user).catch(()=>null);if(u)await u.send("Reminder: "+r.message).catch(()=>{});ctx.db.reminders=ctx.db.reminders.filter(x=>x.id!==r.id);ctx.save()},ms)};
 const finish=(ctx,g)=>{const ms=Math.min(Math.max(1000,g.endsAt-Date.now()),2147483647);setTimeout(async()=>{if(g.ended)return;const a=[...g.entries],w=[];while(w.length<Math.min(g.winners,a.length)){const x=a[Math.floor(Math.random()*a.length)];if(!w.includes(x))w.push(x)}g.ended=true;g.winnerIds=w;ctx.save();const c=ctx.client.channels.cache.get(g.channel);if(c)await c.send("Giveaway ended: **"+g.prize+"** — "+(w.length?w.map(x=>"<@"+x+">").join(", "):"Nobody entered.")).catch(()=>{})},ms)};
 
@@ -117,6 +123,21 @@ async function handle(i,ctx){
  if(n==="reports")return out(i,(db.reports||[]).filter(x=>x.guild===i.guild.id).slice(-20).map(x=>"<@"+x.user+"> — "+x.reason).join("\\n")||"No reports.");
  if(n==="modstats")return out(i,"Warnings: "+Object.values(db.warnings||{}).reduce((a,x)=>a+x.length,0)+" | Reports: "+(db.reports||[]).length);
  if(n==="stafflist")return out(i,i.guild.members.cache.filter(m=>m.roles.cache.some(r=>staff.includes(r.name))).map(m=>m.user.tag).join("\\n")||"No staff found.");
+ 
+ if(n==="servericon"){return out(i,i.guild.iconURL({size:1024})||"This server has no icon.")};
+ if(n==="serverbanner"){return out(i,i.guild.bannerURL({size:2048})||"This server has no banner.")};
+ if(n==="invite"){const inv=await i.channel.createInvite({maxAge:0,maxUses:0,unique:true}).catch(()=>null);return out(i,inv?inv.url:"I cannot create an invite in this channel.")};
+ if(n==="uptime"){const s=Math.floor(process.uptime());return out(i,"Uptime: "+Math.floor(s/86400)+"d "+Math.floor(s%86400/3600)+"h "+Math.floor(s%3600/60)+"m "+s%60+"s")};
+ if(n==="channel-info"){const c=ch(i,"channel")||i.channel;return out(i,c.name+" — "+c.id+" — type "+c.type+" — position "+c.rawPosition)};
+ if(n==="lookup"){const id=opt(i,"user_id"),u=await i.client.users.fetch(id).catch(()=>null);return out(i,u?u.tag+" — "+u.id:"User not found.")};
+ if(n==="firstmessage"){const c=ch(i,"channel")||i.channel;const m=(await c.messages.fetch({after:"1",limit:1})).first();return out(i,m?"First fetched message: "+m.url:"No message found.")};
+ if(n==="logging"){
+   const s=i.options.getSubcommand();
+   if(s==="config"){const c=ch(i,"channel");db.config.logChannel=c.id;ctx.save();return out(i,"Logging channel saved.")};
+   if(s==="disable"){delete db.config.logChannel;ctx.save();return out(i,"Logging disabled.")};
+   const c=i.guild.channels.cache.get(db.config.logChannel);return out(i,c?"Logging is enabled in "+c:"Logging is disabled.");
+ }
+
  return false;
 }
 function init(ctx){for(const r of ctx.db.reminders||[])if(r.at>Date.now())timer(ctx,r);for(const g of Object.values(ctx.db.giveaways||{}))if(!g.ended&&g.endsAt>Date.now())finish(ctx,g)}

@@ -76,7 +76,7 @@ const allCommands=[...commands,...extra.commands.map(c=>c.toJSON())];
 async function registerCommands(){
  const rest=new REST({version:"10"}).setToken(token);
  await rest.put(Routes.applicationGuildCommands(client.user.id,guildId),{body:allCommands});
- console.log("Slash commands registered: "+allCommands.length);
+ console.log("[The Hub] Slash commands registered: "+allCommands.length); console.log("[The Hub] Commands: "+allCommands.map(x=>x.name).join(", "));
  console.log("Systems loaded: tickets, automod, welcome/goodbye, birthdays, leveling, giveaways, suggestions, applications, reminders, AFK, starboard, sticky, custom commands, announcements, roles, staff tools.");
 }
 

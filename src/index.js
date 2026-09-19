@@ -160,7 +160,7 @@ client.on("interactionCreate",async interaction=>{
    if(!memberHasStaffRole(interaction.member))return interaction.reply({content:"You need a staff role to use this command.",ephemeral:true});
    const ch=interaction.options.getChannel("channel",true), msg=interaction.options.getString("message",true);
    if(!ch.isTextBased()||!ch.send)return interaction.reply({content:"That channel cannot receive messages.",ephemeral:true});
-   await ch.send({content:msg,allowedMentions:{parse:[]}}); return interaction.reply({content:"Message sent.",ephemeral:true});
+   const canMention=interaction.member.permissions.has(PermissionFlagsBits.MentionEveryone); await ch.send({content:msg,allowedMentions:{parse:canMention?["everyone"]:[]}}); await logEvent(interaction.guild,"Staff message sent",interaction.user.tag+" used /msg in "+ch.toString()); return interaction.reply({content:"Message sent.",ephemeral:true});
   }
 
   if(n==="create-channel"){

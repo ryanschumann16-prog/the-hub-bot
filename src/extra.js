@@ -57,12 +57,12 @@ add(cmd("staffinfo","Show staff roles."),cmd("staffannounce","Staff announcement
 add(cmd("say","Send message as bot.",P.ManageMessages).addStringOption(S("message","Message.")).addChannelOption(o=>o.setName("channel").setDescription("Channel.")));
 add(cmd("embed","Send embed.",P.ManageMessages).addStringOption(S("title","Title.")).addStringOption(S("description","Description.")).addChannelOption(o=>o.setName("channel").setDescription("Channel.")));
 add(cmd("poll","Create poll.",P.ManageMessages).addStringOption(S("question","Question.")).addStringOption(S("options","Options separated by |.")));
-add(cmd("stats","Show leveling stats.").addUserOption(o=>o.setName("user").setDescription("User.")),cmd("serverstats","Show server stats."),cmd("roleinfo","Show role info.").addRoleOption(o=>o.setName("role").setDescription("Role.").setRequired(true)),cmd("channelinfo","Show channel info.").addChannelOption(o=>o.setName("channel").setDescription("Channel.")),cmd("botinfo","Show bot info."),cmd("permissions","Show permissions."));
-add(cmd("setnick","Set nickname.",P.ManageNicknames).addUserOption(U()).addStringOption(o=>o.setName("nickname").setDescription("Nickname.")));
+add(cmd("roleinfo","Show role info.").addRoleOption(o=>o.setName("role").setDescription("Role.").setRequired(true)));
+
 add(cmd("autorole","Configure autorole.",P.ManageRoles).addRoleOption(o=>o.setName("role").setDescription("Role.").setRequired(true)),cmd("autorole-disable","Disable autorole.",P.ManageRoles));
 add(cmd("reactionrole","Create reaction role.",P.ManageRoles).addRoleOption(o=>o.setName("role").setDescription("Role.").setRequired(true)).addStringOption(S("message","Panel message.")).addChannelOption(o=>o.setName("channel").setDescription("Channel.")));
-add(cmd("announce-embed","Send formatted announcement.",P.ManageMessages).addStringOption(S("title","Title.")).addStringOption(S("description","Description.")).addChannelOption(o=>o.setName("channel").setDescription("Channel.")));
-add(cmd("memberlist","List role members.").addRoleOption(o=>o.setName("role").setDescription("Role.").setRequired(true)));
+
+
 
 const timer=(ctx,r)=>{const ms=Math.min(Math.max(1000,r.at-Date.now()),2147483647);setTimeout(async()=>{const u=await ctx.client.users.fetch(r.user).catch(()=>null);if(u)await u.send("Reminder: "+r.message).catch(()=>{});ctx.db.reminders=ctx.db.reminders.filter(x=>x.id!==r.id);ctx.save()},ms)};
 const finish=(ctx,g)=>{const ms=Math.min(Math.max(1000,g.endsAt-Date.now()),2147483647);setTimeout(async()=>{if(g.ended)return;const a=[...g.entries],w=[];while(w.length<Math.min(g.winners,a.length)){const x=a[Math.floor(Math.random()*a.length)];if(!w.includes(x))w.push(x)}g.ended=true;g.winnerIds=w;ctx.save();const c=ctx.client.channels.cache.get(g.channel);if(c)await c.send("Giveaway ended: **"+g.prize+"** — "+(w.length?w.map(x=>"<@"+x+">").join(", "):"Nobody entered.")).catch(()=>{})},ms)};
